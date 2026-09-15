@@ -73,7 +73,7 @@ class SkipQKDClient:
             context.load_verify_locations(cafile=self.mtls_config.ca_file)
             context.load_cert_chain(certfile=self.mtls_config.cert_file, keyfile=self.mtls_config.key_file)
         
-        return context.wrap_socket(raw_socket)
+        return context.wrap_socket(raw_socket, server_hostname=host)
 
     def close(self):
         if self.socket:
@@ -92,8 +92,7 @@ class SkipQKDClient:
             self.socket = self._create_tls_connection()
         return self.socket
 
-    def _send_request(self, method: str, path: str, query_params: dict = None) -> str:
-        """Posílá HTTP request s query parametry"""
+    def _send_request(self, method: str, path: str, query_params: dict = None) -> dict:
         if query_params is None:
             query_params = {}
         
@@ -103,6 +102,7 @@ class SkipQKDClient:
             full_path = f"{path}?{query_string}"
         
         http_request = f"{method} {full_path} HTTP/1.1\r\nHost: {self.server_id}\r\nConnection: close\r\n\r\n"
+        
         socket = self._get_connection()
         socket.sendall(http_request.encode())
         
@@ -113,23 +113,34 @@ class SkipQKDClient:
                 break
             response += data
         
-        return response.decode(errors='replace')
+        response_str = response.decode(errors='replace')
+        
+        import json
+        header, body = response_str.split("\r\n\r\n", 1)
+        
+        start = body.find('{')
+        end = body.rfind('}') + 1
+        
+        if start != -1 and end != 0:
+            clean_json = body[start:end]
+            return json.loads(clean_json)
+        else:
+            raise ValueError(f"Cannot find valid JSON in response: {body}")
 
-
-    def request_key(self, peer_server_id: str, size: int = None) -> str:
+    def request_key(self, peer_server_id: str, size: int = None) -> dict:
         params = {'remoteSystemID': peer_server_id}
         if size:
             params['size'] = size
         return self._send_request("GET", "/key", params)
 
-    def fetch_key_by_id(self, key_id: str, peer_server_id: str) -> str:
+    def fetch_key_by_id(self, key_id: str, peer_server_id: str) -> dict:
         params = {'remoteSystemID': peer_server_id}
         return self._send_request("GET", f"/key/{key_id}", params)
 
-    def capabilities(self) -> str:
+    def capabilities(self) -> dict:
         return self._send_request("GET", "/capabilities")
 
-    def entropy(self, minentropy: int = None) -> str:
+    def entropy(self, minentropy: int = None) -> dict:
         params = {}
         if minentropy:
             params['minentropy'] = minentropy
