@@ -39,11 +39,13 @@ class SkipQKDClient:
 
 
     def _create_tls_connection(self):
+
+        if not self.mtls_config and not self.psk_config:
+            raise ValueError("Either mTLS or PSK configuration must be provided.")
+
         host, port = self.server_address.split(':')
         raw_socket = socket.create_connection((host, int(port)))
         
-        if not self.mtls_config and not self.psk_config:
-            raise ValueError("Either mTLS or PSK configuration must be provided.")
         
         def psk_callback(hint):
             return self.psk_config.identity, self.psk_config.psk
