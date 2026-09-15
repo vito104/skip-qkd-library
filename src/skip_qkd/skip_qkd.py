@@ -112,6 +112,8 @@ class SkipQKDClient:
             if not data:
                 break
             response += data
+            
+        self.socket = None  
         
         response_str = response.decode(errors='replace')
         
