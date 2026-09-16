@@ -3,3 +3,4 @@ skip_qkd.egg-info
 __pycache__
 testprog.py
 .pytest_cache
+venv/
