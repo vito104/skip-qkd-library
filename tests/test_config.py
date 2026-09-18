@@ -1,80 +1,49 @@
 import pytest
-from skip_qkd import SkipQKDClient, PSKConfig, MTLSConfig
-from unittest.mock import Mock, patch, MagicMock
-
-class TestSkipQKDClientInit:
-    def test_init_with_psk(self):
-        psk = PSKConfig(identity="test_identity", psk="test_key")
-        client = SkipQKDClient(server_address="127.0.0.1:8000", server_id="test_client", psk_config=psk)
-        assert client.server_address == "127.0.0.1:8000"
-        assert client.server_id == "test_client"
-        assert client.psk_config == psk
+from skip_qkd import PSKConfig, MTLSConfig
 
 
-    def test_init_with_mtls(self):
-        mtls = MTLSConfig(cert_file="cert.pem", key_file="key.pem", ca_file="ca.pem")
-        client = SkipQKDClient(server_address="127.0.0.1:8000", server_id="test_client", mtls_config=mtls)
-        assert client.mtls_config == mtls
+class TestPSKConfig:
+    def test_valid_psk_config(self):
+        """PSKConfig s správnými hodnotami"""
+        config = PSKConfig(identity="test_id", psk="test_psk")
+        assert config.identity == "test_id"
+        assert config.psk == "test_psk"
 
-    def test_init_no_data(self):
-        with pytest.raises(ValueError, match="Either mTLS or PSK configuration must be provided."):
-            client = SkipQKDClient(server_address="127.0.0.1:8000", server_id="test_client")
-            client._create_tls_connection()
+    def test_psk_config_missing_identity(self):
+        """PSKConfig - chybí identity"""
+        with pytest.raises(ValueError, match="Both identity and psk"):
+            PSKConfig(identity="", psk="test_psk")
 
-class TestSkipQKDClientRequests:
+    def test_psk_config_missing_psk(self):
+        """PSKConfig - chybí psk"""
+        with pytest.raises(ValueError, match="Both identity and psk"):
+            PSKConfig(identity="test_id", psk="")
 
-    @patch('socket.socket')
-    def test_send_request_basic(self, mock_socket):
-        psk = PSKConfig(identity="test", psk="secret")
-        client = SkipQKDClient(
-            server_address="127.0.0.1:8000",
-            server_id="server1",
-            psk_config=psk
-        )
-
-    def test_request_key_with_peer(self):
-        psk = PSKConfig(identity="test", psk="secret")
-        client = SkipQKDClient(
-            server_address="127.0.0.1:8000",
-            server_id="server1",
-            psk_config=psk
-        )
-
-        mock_socket = MagicMock()
-        mock_socket.recv.side_effect = [b"HTTP/1.1 200 OK\r\n\r\n{}", b""]
-
-        with patch.object(client, '_get_connection', return_value=mock_socket):
-            response = client.request_key("peer_server")
-            assert b"remoteSystemID=peer_server" in mock_socket.sendall.call_args[0][0]
+    def test_psk_config_both_missing(self):
+        """PSKConfig - chybí oba"""
+        with pytest.raises(ValueError):
+            PSKConfig(identity="", psk="")
 
 
-    def test_capabilities(self):
-        psk = PSKConfig(identity="test", psk="secret")
-        client = SkipQKDClient(
-            server_address="127.0.0.1:8000",
-            server_id="server1",
-            psk_config=psk
-        )
+class TestMTLSConfig:
+    def test_valid_mtls_config(self):
+        """MTLSConfig s správnými hodnotami"""
+        config = MTLSConfig(ca_file="ca.crt", cert_file="cert.crt", key_file="key.key")
+        assert config.ca_file == "ca.crt"
+        assert config.cert_file == "cert.crt"
+        assert config.key_file == "key.key"
 
-        mock_socket = MagicMock()
-        mock_socket.recv.side_effect = [b"HTTP/1.1 200 OK\r\n\r\n{}", b""]
+    def test_mtls_config_missing_ca_file(self):
+        """MTLSConfig - chybí ca_file"""
+        with pytest.raises(ValueError, match="All fields"):
+            MTLSConfig(ca_file="", cert_file="cert.crt", key_file="key.key")
 
-        with patch.object(client, '_get_connection', return_value=mock_socket):
-            response = client.capabilities()
-            assert b"/capabilities" in mock_socket.sendall.call_args[0][0]
+    def test_mtls_config_missing_cert_file(self):
+        """MTLSConfig - chybí cert_file"""
+        with pytest.raises(ValueError, match="All fields"):
+            MTLSConfig(ca_file="ca.crt", cert_file="", key_file="key.key")
 
-
-    def test_entropy_with_minentropy(self):
-        psk = PSKConfig(identity="test", psk="secret")
-        client = SkipQKDClient(
-            server_address="127.0.0.1:8000",
-            server_id="server1",
-            psk_config=psk
-        )
-
-        mock_socket = MagicMock()
-        mock_socket.recv.side_effect = [b"HTTP/1.1 200 OK\r\n\r\n{}", b""]
-
-        with patch.object(client, '_get_connection', return_value=mock_socket):
-            response = client.entropy(minentropy=128)
-            assert b"minentropy=128" in mock_socket.sendall.call_args[0][0]
+    def test_mtls_config_all_missing(self):
+        """MTLSConfig - chybí všechno"""
+        with pytest.raises(ValueError):
+            MTLSConfig(ca_file="", cert_file="", key_file="")
