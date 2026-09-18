@@ -104,7 +104,7 @@ class SkipQKDClient:
             full_path = f"{path}?{query_string}"
         
         http_request = f"{method} {full_path} HTTP/1.1\r\nHost: {self.server_id}\r\nConnection: close\r\n\r\n"
-        
+
         socket = self._get_connection()
         try:
             socket.sendall(http_request.encode())
@@ -115,7 +115,7 @@ class SkipQKDClient:
                     break
                 response += data
         finally:
-            self.socket.close()
+            socket.close()
         
         response_str = response.decode(errors='replace')
         
