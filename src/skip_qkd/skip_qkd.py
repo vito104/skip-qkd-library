@@ -2,6 +2,8 @@ from dataclasses import dataclass
 import socket
 import ssl
 from sslpsk3 import SSLPSKContext
+import json
+
 
 
 @dataclass
@@ -104,22 +106,28 @@ class SkipQKDClient:
         http_request = f"{method} {full_path} HTTP/1.1\r\nHost: {self.server_id}\r\nConnection: close\r\n\r\n"
         
         socket = self._get_connection()
-        socket.sendall(http_request.encode())
-        
-        response = b""
-        while True:
-            data = socket.recv(4096)
-            if not data:
-                break
-            response += data
-            
-        self.socket = None  
+        try:
+            socket.sendall(http_request.encode())
+            response = b""
+            while True:
+                data = socket.recv(4096)
+                if not data:
+                    break
+                response += data
+        finally:
+            self.socket.close()
         
         response_str = response.decode(errors='replace')
         
-        import json
-        header, body = response_str.split("\r\n\r\n", 1)
+        answer = response_str.split("\r\n\r\n", 1)
+        if len(answer) != 2:
+            raise ValueError(f"Invalid HTTP response received: {response_str}")
         
+        header, body = answer
+        first_line = header.split("\r\n")[0]
+        if " 200 " not in first_line:
+            raise RuntimeError(f"Server returned error: {first_line}")
+
         start = body.find('{')
         end = body.rfind('}') + 1
         
