@@ -289,6 +289,12 @@ pytest tests/ --cov=skip_qkd
 
 Contributions are welcome! Please feel free to submit pull requests.
 
+## Tested On
+
+- Python 3.14.4 on Linux (Ubuntu 26.04.1 LTS)
+
+Note: While this library targets Python 3.8+, it has only been tested on Python 3.11.
+
 ## Author
 
 **Vit Ruzicka**  
